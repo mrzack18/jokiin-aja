@@ -36,34 +36,40 @@ orderForm.addEventListener('submit', async function (e) {
         notes: document.getElementById('notes').value
     };
 
+    // Construct WhatsApp URL
+    const waNumber = "6289669107694";
+    const text = `Halo min, saya mau joki tugas.\n\nNama: ${formData.name}\nNo HP: ${formData.phone}\nJenis Tugas: ${formData.taskType}\nCatatan: ${formData.notes}`;
+    const encodedText = encodeURIComponent(text);
+    const waUrl = `https://wa.me/${waNumber}?text=${encodedText}`;
+
     try {
-        // Send data to server
-        const response = await fetch('/api/order', {
+        // Attempt to save to server (Works locally, fails/ignored on Vercel static)
+        // We use a short timeout to not delay the user too long if server is unreachable
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+
+        await fetch('/api/order', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(formData)
+            body: JSON.stringify(formData),
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
-        if (response.ok) {
-            // Redirect to WhatsApp after successful save
-            const waNumber = "6289669107694";
-            const text = `Halo min, saya mau joki tugas.\n\nNama: ${formData.name}\nNo HP: ${formData.phone}\nJenis Tugas: ${formData.taskType}\nCatatan: ${formData.notes}`;
-            const encodedText = encodeURIComponent(text);
-
-            window.open(`https://wa.me/${waNumber}?text=${encodedText}`, '_blank');
-            modal.style.display = 'none';
-            orderForm.reset();
-        } else {
-            alert('Gagal menyimpan data. Silakan coba lagi.');
-        }
     } catch (error) {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan koneksi. Pastikan server berjalan.');
+        // Ignore error (Server not running or Vercel environment)
+        console.log('Backend sync skipped or failed, proceeding to WhatsApp...');
     } finally {
+        // ALWAYS Redirect to WhatsApp
+        window.open(waUrl, '_blank');
+
+        // Cleanup UI
         submitBtn.innerHTML = originalBtnText;
         submitBtn.disabled = false;
+        modal.style.display = 'none';
+        orderForm.reset();
     }
 });
 
